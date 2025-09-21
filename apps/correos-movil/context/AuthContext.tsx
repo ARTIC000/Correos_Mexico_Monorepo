@@ -1,4 +1,3 @@
-// authContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserInfoFromToken } from '../utils/jwt.utils';
@@ -11,7 +10,7 @@ type AuthContextType = {
     setUserInfo: (info: { userId: string, userRol: string }) => void;
     logout: () => Promise<void>;
     reloadUserData: () => Promise<void>;
-    };
+};
 
 const AuthContext = createContext<AuthContextType>({
     isAuthenticated: false,
@@ -24,32 +23,44 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [userId, setUserId] = useState<string | null>(null);
-    const [userRol, setUserRol] = useState<string | null>(null);
-
-    // Cargar token al iniciar la app
+    const [isAuthenticated, setIsAuthenticated] = useState(true);
+    const [userId, setUserId] = useState<string | null>('temp-user-id');
+    const [userRol, setUserRol] = useState<string | null>('usuario');
 
     const loadUserData = async () => {
         try {
-            const token = await AsyncStorage.getItem('token')
+            const skipLoginForDevelopment = true; //cambiar a false para entrar a login 
+            
+            if (skipLoginForDevelopment) {
+                console.log('Se omite el log in (cambiar en AuthContext.tsx)');
+                return; 
+            }
 
+            const token = await AsyncStorage.getItem('token');
             console.log('token: ', token);
+            
             if (token) {
                 const userInfo = await getUserInfoFromToken();
                 if (userInfo) {
                     setUserId(userInfo.profileId);
                     await AsyncStorage.setItem('userId', String(userInfo.profileId));
                     setUserRol(userInfo.rol);
-                    console.log('hola');
                     console.log('userInfo: ', userInfo);
                     setIsAuthenticated(true);
                 }
+            } else {
+                setIsAuthenticated(false);
+                setUserId(null);
+                setUserRol(null);
             }
         } catch (error) {
             console.error('Error loading user data:', error);
+            setIsAuthenticated(false);
+            setUserId(null);
+            setUserRol(null);
         }
     };
+
     useEffect(() => {
         loadUserData();
     }, []);
@@ -58,18 +69,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await loadUserData();
     };
 
-
     const setUserInfo = (info: { userId: string, userRol: string }) => {
         setUserId(info.userId);
         setUserRol(info.userRol);
     };
 
     const logout = async () => {
-        await AsyncStorage.removeItem('token');
-        await AsyncStorage.removeItem('userId');
-        setUserId(null);
-        setUserRol(null);
-        setIsAuthenticated(false);
+        const skipLoginForDevelopment = true;
+        
+        if (!skipLoginForDevelopment) {
+            await AsyncStorage.removeItem('token');
+            await AsyncStorage.removeItem('userId');
+            setUserId(null);
+            setUserRol(null);
+            setIsAuthenticated(false);
+        } else {
+            console.log('Logout desactivado en modo desarrollo');
+        }
     };
 
     return (
